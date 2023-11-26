@@ -13,7 +13,7 @@ import torch
 import os
 from tqdm.auto import tqdm
 from fastcomposer.pipeline import (
-    stable_diffusion_call_with_references_delayed_conditioning,
+    stable_diffusion_controlnet_call_with_references_delayed_conditioning,
 )
 import types
 import itertools
@@ -68,7 +68,7 @@ def main():
     pipe.postfuse_module = model.postfuse_module
 
     pipe.inference = types.MethodType(
-        stable_diffusion_call_with_references_delayed_conditioning, pipe
+        stable_diffusion_controlnet_call_with_references_delayed_conditioning, pipe
     )
 
     del model

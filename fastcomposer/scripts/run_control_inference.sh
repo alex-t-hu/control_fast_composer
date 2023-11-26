@@ -3,7 +3,7 @@ DEMO_NAME="newton_einstein"
 export PYTHONPATH="/home/alex/devel/control_fast_composer/fastcomposer:$PYTHONPATH"
 CUDA_VISIBLE_DEVICES=0 accelerate launch \
     --mixed_precision=fp16 \
-    fastcomposer/inference.py \
+    fastcomposer/control_inference.py \
     --pretrained_model_name_or_path runwayml/stable-diffusion-v1-5 \
     --finetuned_model_path model/fastcomposer \
     --test_reference_folder data/${DEMO_NAME} \
