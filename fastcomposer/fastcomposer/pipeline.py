@@ -16,12 +16,12 @@ import cv2
 import os
 import sys
 import pdb
-
+import gc
 
 sys.path.append( os.path.join(os.getcwd(),'..', 'ControlNet'))
 from annotator.util import resize_image, HWC3
 from annotator.canny import CannyDetector
-from cldim.model import create_model, load_state_dict
+from cldm.model import create_model, load_state_dict
 from cldm.ddim_hacked import DDIMSampler
 
 class StableDiffusionFastCompposerPipeline(StableDiffusionPipeline):
@@ -579,7 +579,12 @@ def stable_diffusion_controlnet_call_with_references_delayed_conditioning(
     control_reference_image: Image.Image = None,
     low_threshold: int = 100,
     high_threshold: int = 200,
-
+    a_prompt : str = "best quality, extremely detailed",
+    n_prompt : str = "longbody, lowres, bad anatomy, bad hands, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality",
+    num_samples : int = 1,
+    guess_mode: bool = False,
+    strength: float = 1.0,
+    scale: float = 9.0,
 ):
     
 
@@ -588,8 +593,9 @@ def stable_diffusion_controlnet_call_with_references_delayed_conditioning(
     width = width or self.unet.config.sample_size * self.vae_scale_factor
 
     # 1. Check inputs. Raise error if not correct
+    temp_prompt = None # temp hack to enable passing in both text prompt and embeds
     self.check_inputs(
-        prompt,
+        temp_prompt,
         height,
         width,
         callback_steps,
@@ -614,25 +620,42 @@ def stable_diffusion_controlnet_call_with_references_delayed_conditioning(
 
     assert do_classifier_free_guidance
 
-    pdb.set_trace()
+    # pdb.set_trace()
     #########################################################
     # extract canny edges from control reference image
     
 
-    control_reference_image = np.array(control_reference_image.convert("RGB"))
-    control_reference_image = cv2.resize(control_reference_image, (width, height), interpolation=cv2.INTER_LANCZOS4)
-    control_reference_image = cv2.cvtColor(control_reference_image, cv2.COLOR_RGB2GRAY)
-    control_reference_image = cv2.Canny(control_reference_image, low_threshold, high_threshold)
-    H, W, C = control_reference_image.shape
-    assert H == height and W == width and C == 3
-    control = torch.from_numpy(control_reference_image).permute(2, 0, 1).float().cuda() / 255.0
-    control = torch.stack([control for _ in range(batch_size)], dim=0)
-    cond = {"c_concat": [control], "c_crossattn": [model.get_learned_conditioning([prompt + ', ' + a_prompt] * num_samples)]}
-    un_cond = {"c_concat": None if guess_mode else [control], "c_crossattn": [model.get_learned_conditioning([n_prompt] * num_samples)]}
-    shape = (4, H // 8, W // 8)
-    controlnet_model = create_model('./models/cldm_v15.yaml').cpu()
-    controlnet_model.load_state_dict(load_state_dict('./models/control_sd15_canny.pth', location='cuda'))
+    # control_reference_image = np.array(control_reference_image.convert("RGB"))
+    # control_reference_image = cv2.resize(control_reference_image, (width, height), interpolation=cv2.INTER_LANCZOS4)
+    # control_reference_image = cv2.cvtColor(control_reference_image, cv2.COLOR_RGB2GRAY)
+    # control_reference_image = cv2.Canny(control_reference_image, low_threshold, high_threshold)
+    image_resolution = width
+    img = resize_image(HWC3(np.array(control_reference_image).astype(np.uint8) ), image_resolution)
+    H, W, C = img.shape
+
+    detected_map = cv2.Canny(img, low_threshold, high_threshold)
+    detected_map = HWC3(detected_map)
+
+    control = torch.from_numpy(detected_map.copy()).permute(2,0,1).float().cuda() / 255.0
+    control = torch.stack([control for _ in range(num_samples)], dim=0)
+
+
+    controlnet_model = create_model('../ControlNet/models/cldm_v15.yaml').cpu()
+    controlnet_model.load_state_dict(load_state_dict('../ControlNet/models/control_sd15_canny.pth', location='cuda'))
     controlnet_model = controlnet_model.cuda()
+    cond = {"c_concat": [control], "c_crossattn": [controlnet_model.get_learned_conditioning([prompt + ', ' + a_prompt] * num_samples)]}
+    un_cond = {"c_concat": None if guess_mode else [control], "c_crossattn": [controlnet_model.get_learned_conditioning([n_prompt] * num_samples)]}
+    shape = (4, H // 8, W // 8)
+    controlnet_model.control_scales = [strength * (0.825 ** float(12 - i)) for i in range(13)] if guess_mode else ([strength] * 13)  # Magic number. IDK why. Perhaps because 0.825**12<0.01 but 0.826**12>0.01
+    ddim_sampler = DDIMSampler(controlnet_model)
+    ddim_steps = start_merge_step + 1
+    samples, _ = ddim_sampler.sample(ddim_steps, num_samples,
+                                                     shape, cond, verbose=False, eta=eta,
+                                                     unconditional_guidance_scale=scale,
+                                                     unconditional_conditioning=un_cond)
+
+    del controlnet_model
+    gc.collect()
 
     #########################################################
     # 3. Encode input prompt
@@ -654,16 +677,17 @@ def stable_diffusion_controlnet_call_with_references_delayed_conditioning(
 
     # 5. Prepare latent variables
     num_channels_latents = self.unet.in_channels
-    latents = self.prepare_latents(
-        batch_size * num_images_per_prompt,
-        num_channels_latents,
-        height,
-        width,
-        prompt_embeds.dtype,
-        device,
-        generator,
-        latents,
-    )
+    # latents = self.prepare_latents(
+    #     batch_size * num_images_per_prompt,
+    #     num_channels_latents,
+    #     height,
+    #     width,
+    #     prompt_embeds.dtype,
+    #     device,
+    #     generator,
+    #     latents,
+    # )
+    latents = samples
 
     extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
     (
@@ -682,6 +706,7 @@ def stable_diffusion_controlnet_call_with_references_delayed_conditioning(
             latent_model_input = self.scheduler.scale_model_input(latent_model_input, t)
 
             if i <= start_merge_step:
+                continue
                 current_prompt_embeds = torch.cat(
                     [null_prompt_embeds, text_prompt_embeds], dim=0
                 )
@@ -711,7 +736,7 @@ def stable_diffusion_controlnet_call_with_references_delayed_conditioning(
             latents = self.scheduler.step(
                 noise_pred, t, latents, **extra_step_kwargs
             ).prev_sample
-
+            # pdb.set_trace()
             # call the callback, if provided
             if i == len(timesteps) - 1 or (
                 (i + 1) > num_warmup_steps and (i + 1) % self.scheduler.order == 0

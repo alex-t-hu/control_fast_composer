@@ -669,6 +669,12 @@ def parse_args(default=False):
 
     parser.add_argument("--freeze_postfuse_module", action="store_true")
 
+    parser.add_argument(
+        "--control_reference_image",
+        type=str,
+        default="outputs4/newton_einstein/output_0.png",
+    )
+
     if default:
         return parser.parse_args([])
 

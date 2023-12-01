@@ -158,6 +158,8 @@ def main():
         cross_attention_kwargs=cross_attention_kwargs,
         prompt_embeds_text_only=encoder_hidden_states_text_only,
         start_merge_step=args.start_merge_step,
+        control_reference_image = Image.open(args.control_reference_image).convert("RGB"),
+        prompt= ''.join(args.test_caption.split("<|image|>")),
     ).images
 
     for instance_id in range(args.num_images_per_prompt):

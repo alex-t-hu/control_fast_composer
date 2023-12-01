@@ -23,4 +23,6 @@ CUDA_VISIBLE_DEVICES=0 accelerate launch \
     --guidance_scale 5 \
     --inference_steps 50 \
     --start_merge_step 10 \
+    --control_reference_image /home/alex/devel/control_fast_composer/fastcomposer/outputs4/newton_einstein/output_0.png \
     --no_object_augmentation
+   
