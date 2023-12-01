@@ -9,9 +9,20 @@ from transformers import CLIPImageProcessor, CLIPTokenizer
 from fastcomposer.transforms import PadToSquare
 from torchvision import transforms as T
 from collections import OrderedDict
-from PIL import Image 
-import numpy as np 
+from PIL import Image
+import numpy as np
 import torch
+import cv2
+import os
+import sys
+import pdb
+
+
+sys.path.append( os.path.join(os.getcwd(),'..', 'ControlNet'))
+from annotator.util import resize_image, HWC3
+from annotator.canny import CannyDetector
+from cldim.model import create_model, load_state_dict
+from cldm.ddim_hacked import DDIMSampler
 
 class StableDiffusionFastCompposerPipeline(StableDiffusionPipeline):
     r"""
@@ -565,7 +576,13 @@ def stable_diffusion_controlnet_call_with_references_delayed_conditioning(
     callback_steps: int = 1,
     cross_attention_kwargs: Optional[Dict[str, Any]] = None,
     start_merge_step=0,
+    control_reference_image: Image.Image = None,
+    low_threshold: int = 100,
+    high_threshold: int = 200,
+
 ):
+    
+
     # 0. Default height and width to unet
     height = height or self.unet.config.sample_size * self.vae_scale_factor
     width = width or self.unet.config.sample_size * self.vae_scale_factor
@@ -597,6 +614,27 @@ def stable_diffusion_controlnet_call_with_references_delayed_conditioning(
 
     assert do_classifier_free_guidance
 
+    pdb.set_trace()
+    #########################################################
+    # extract canny edges from control reference image
+    
+
+    control_reference_image = np.array(control_reference_image.convert("RGB"))
+    control_reference_image = cv2.resize(control_reference_image, (width, height), interpolation=cv2.INTER_LANCZOS4)
+    control_reference_image = cv2.cvtColor(control_reference_image, cv2.COLOR_RGB2GRAY)
+    control_reference_image = cv2.Canny(control_reference_image, low_threshold, high_threshold)
+    H, W, C = control_reference_image.shape
+    assert H == height and W == width and C == 3
+    control = torch.from_numpy(control_reference_image).permute(2, 0, 1).float().cuda() / 255.0
+    control = torch.stack([control for _ in range(batch_size)], dim=0)
+    cond = {"c_concat": [control], "c_crossattn": [model.get_learned_conditioning([prompt + ', ' + a_prompt] * num_samples)]}
+    un_cond = {"c_concat": None if guess_mode else [control], "c_crossattn": [model.get_learned_conditioning([n_prompt] * num_samples)]}
+    shape = (4, H // 8, W // 8)
+    controlnet_model = create_model('./models/cldm_v15.yaml').cpu()
+    controlnet_model.load_state_dict(load_state_dict('./models/control_sd15_canny.pth', location='cuda'))
+    controlnet_model = controlnet_model.cuda()
+
+    #########################################################
     # 3. Encode input prompt
     prompt_embeds = self._encode_prompt(
         prompt,

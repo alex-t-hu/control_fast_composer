@@ -1,4 +1,4 @@
-CAPTION="a man <|image|> and a woman <|image|> are reading book together"
+CAPTION="a man <|image|> and a man <|image|> are reading book together"
 DEMO_NAME="newton_einstein"
 export PYTHONPATH="/home/alex/devel/control_fast_composer/fastcomposer:$PYTHONPATH"
 CUDA_VISIBLE_DEVICES=0 accelerate launch \
@@ -8,7 +8,7 @@ CUDA_VISIBLE_DEVICES=0 accelerate launch \
     --finetuned_model_path model/fastcomposer \
     --test_reference_folder data/${DEMO_NAME} \
     --test_caption "${CAPTION}" \
-    --output_dir outputs5/${DEMO_NAME} \
+    --output_dir control_output1/${DEMO_NAME} \
     --mixed_precision fp16 \
     --image_encoder_type clip \
     --image_encoder_name_or_path openai/clip-vit-large-patch14 \
