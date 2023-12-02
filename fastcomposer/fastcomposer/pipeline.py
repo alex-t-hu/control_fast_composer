@@ -687,7 +687,7 @@ def stable_diffusion_controlnet_call_with_references_delayed_conditioning(
     #     generator,
     #     latents,
     # )
-    latents = samples
+    latents = samples.half()
 
     extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
     (
@@ -714,7 +714,7 @@ def stable_diffusion_controlnet_call_with_references_delayed_conditioning(
                 current_prompt_embeds = torch.cat(
                     [null_prompt_embeds, augmented_prompt_embeds], dim=0
                 )
-
+            # pdb.set_trace()
             # predict the noise residual
             noise_pred = self.unet(
                 latent_model_input,
