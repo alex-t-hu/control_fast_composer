@@ -675,6 +675,18 @@ def parse_args(default=False):
         default="outputs4/newton_einstein/output_0.png",
     )
 
+    parser.add_argument(
+        "--scale",
+        type=float,
+        default=2.0,
+    )
+    parser.add_argument(
+        '--mode',
+        type=str,
+        default='canny',
+    )
+    
+
     if default:
         return parser.parse_args([])
 

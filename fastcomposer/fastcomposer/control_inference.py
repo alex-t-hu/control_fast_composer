@@ -160,6 +160,9 @@ def main():
         start_merge_step=args.start_merge_step,
         control_reference_image = Image.open(args.control_reference_image).convert("RGB"),
         prompt= ''.join(args.test_caption.split("<|image|>")),
+        output_dir=args.output_dir,
+        scale = args.scale,
+        mode = args.mode,
     ).images
 
     for instance_id in range(args.num_images_per_prompt):

@@ -21,6 +21,7 @@ import gc
 sys.path.append( os.path.join(os.getcwd(),'..', 'ControlNet'))
 from annotator.util import resize_image, HWC3
 from annotator.canny import CannyDetector
+from annotator.openpose import OpenposeDetector
 from cldm.model import create_model, load_state_dict
 from cldm.ddim_hacked import DDIMSampler
 
@@ -584,7 +585,9 @@ def stable_diffusion_controlnet_call_with_references_delayed_conditioning(
     num_samples : int = 1,
     guess_mode: bool = False,
     strength: float = 1.0,
-    scale: float = 9.0,
+    scale: float = 2.0,
+    output_dir: str = "",
+    mode: str = "canny",
 ):
     
 
@@ -630,19 +633,33 @@ def stable_diffusion_controlnet_call_with_references_delayed_conditioning(
     # control_reference_image = cv2.cvtColor(control_reference_image, cv2.COLOR_RGB2GRAY)
     # control_reference_image = cv2.Canny(control_reference_image, low_threshold, high_threshold)
     image_resolution = width
-    img = resize_image(HWC3(np.array(control_reference_image).astype(np.uint8) ), image_resolution)
-    H, W, C = img.shape
 
-    detected_map = cv2.Canny(img, low_threshold, high_threshold)
-    detected_map = HWC3(detected_map)
+    if mode == "canny":
+        img = resize_image(HWC3(np.array(control_reference_image).astype(np.uint8) ), image_resolution)
+        H, W, C = img.shape
 
+        detected_map = cv2.Canny(img, low_threshold, high_threshold)
+        detected_map = HWC3(detected_map)
+
+        
+    elif mode == "openpose":
+        input_image = HWC3(np.array(control_reference_image).astype(np.uint8))
+        detected_map, _ = OpenposeDetector()(resize_image(input_image, image_resolution))
+        detected_map = HWC3(detected_map)
+        img = resize_image(input_image, image_resolution)
+        H, W, C = img.shape
+
+        detected_map = cv2.resize(detected_map, (W, H), interpolation=cv2.INTER_NEAREST)
+    
     control = torch.from_numpy(detected_map.copy()).permute(2,0,1).float().cuda() / 255.0
     control = torch.stack([control for _ in range(num_samples)], dim=0)
 
 
     controlnet_model = create_model('../ControlNet/models/cldm_v15.yaml').cpu()
-    controlnet_model.load_state_dict(load_state_dict('../ControlNet/models/control_sd15_canny.pth', location='cuda'))
+    model_path = '../ControlNet/models/control_sd15_canny.pth' if mode == "canny" else '../ControlNet/models/control_sd15_openpose.pth'
+    controlnet_model.load_state_dict(load_state_dict(model_path, location='cuda'))
     controlnet_model = controlnet_model.cuda()
+
     cond = {"c_concat": [control], "c_crossattn": [controlnet_model.get_learned_conditioning([prompt + ', ' + a_prompt] * num_samples)]}
     un_cond = {"c_concat": None if guess_mode else [control], "c_crossattn": [controlnet_model.get_learned_conditioning([n_prompt] * num_samples)]}
     shape = (4, H // 8, W // 8)
@@ -653,7 +670,24 @@ def stable_diffusion_controlnet_call_with_references_delayed_conditioning(
                                                      shape, cond, verbose=False, eta=eta,
                                                      unconditional_guidance_scale=scale,
                                                      unconditional_conditioning=un_cond)
+    x_samples = controlnet_model.decode_first_stage(samples)
+    x_samples = (x_samples.permute(0,2,3,1) * 127.5 + 127.5).cpu().numpy().clip(0, 255).astype(np.uint8)
 
+    results = [x_samples[i] for i in range(num_samples)]
+    supplemental_images =  [255 - detected_map] + results
+    supplemental_images = [Image.fromarray(img) for img in supplemental_images]
+    for idx, img in enumerate(supplemental_images):
+        if idx == 0:
+            img.save( os.path.join(
+                output_dir,
+                "canny_mask.png" if mode == "canny" else "openpose_mask.png")
+            )
+        else:
+            img.save( os.path.join(
+                output_dir,
+                f"controlnet_{idx}.png")
+            ) 
+    
     del controlnet_model
     gc.collect()
 

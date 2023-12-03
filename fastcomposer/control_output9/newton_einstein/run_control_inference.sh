@@ -1,6 +1,6 @@
 CAPTION="a man <|image|> and a man <|image|> are reading book together"
 DEMO_NAME="newton_einstein"
-OUTPUT_DIR="control_output10/${DEMO_NAME}"
+OUTPUT_DIR="control_output9/${DEMO_NAME}"
 
 export PYTHONPATH="/home/alex/devel/control_fast_composer/fastcomposer:$PYTHONPATH"
 CUDA_VISIBLE_DEVICES=0 accelerate launch \
@@ -27,7 +27,6 @@ CUDA_VISIBLE_DEVICES=0 accelerate launch \
     --start_merge_step 10 \
     --control_reference_image /home/alex/devel/control_fast_composer/fastcomposer/gregilya.jpg \
     --scale 2.0 \
-    --mode openpose \
     --no_object_augmentation
    
 cp scripts/run_control_inference.sh ${OUTPUT_DIR}
