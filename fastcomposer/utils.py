@@ -240,7 +240,7 @@ def parse_args(default=False):
     parser.add_argument(
         "--mixed_precision",
         type=str,
-        default=None,
+        default="fp16",
         choices=["no", "fp16", "bf16"],
         help=(
             "Whether to use mixed precision. Choose between fp16 and bf16 (bfloat16). Bf16 requires PyTorch >="
@@ -313,7 +313,7 @@ def parse_args(default=False):
     parser.add_argument("--guidance_scale", type=int, default=5)
     parser.add_argument("--num_images_per_prompt", type=int, default=1)
     parser.add_argument("--evaluation_batch_size", type=int, default=4)
-    parser.add_argument("--finetuned_model_path", type=str)
+    parser.add_argument("--finetuned_model_path", type=str, default="fastcomposer/model/fastcomposer/pytorch_model.bin")
     parser.add_argument("--start_idx", type=int, default=0)
     parser.add_argument("--end_idx", type=int, default=50)
     parser.add_argument(

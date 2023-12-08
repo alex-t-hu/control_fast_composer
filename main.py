@@ -9,7 +9,7 @@ import cv2
 from PIL import Image
 import numpy as np
 import os 
-
+import pdb
 def image_grid(imgs, rows, cols):
     assert len(imgs) == rows * cols
 
@@ -140,7 +140,7 @@ def main_fastcomposer_controlnet():
         # control_guidance_end=0.8,
     )
 
-    grid_image = image_grid(output.images, 4, 4)
+    grid_image = image_grid(output.images, 1, 1)
     grid_image.save(os.path.join(CACHE_DIR,"output_image.png"))
 
 
