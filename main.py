@@ -3,7 +3,7 @@ from controlnet.controlnet_pipeline import FastComposerControlNetPipeline
 from fastcomposer.utils import parse_args
 from diffusers.utils import load_image
 import torch 
-
+from controlnet.pose_utils import OpenposeDetector
 
 import cv2
 from PIL import Image
@@ -90,23 +90,29 @@ def load_pipeline(args, device):
     del model
     return pipe
 
+def generate_poses_image(image, CACHE_DIR):
+    pose_image, _ = OpenposeDetector()(image)
+    pose_image = Image.fromarray(pose_image)
+    pose_image.save(os.path.join(CACHE_DIR,"pose_image.png"))
+    return pose_image
+
+def generate_canny_image(image, CACHE_DIR, low_threshold=100, high_threshold=200):
+    canny_image = cv2.Canny(image, low_threshold, high_threshold)
+    canny_image = canny_image[:, :, None]
+    canny_image = np.concatenate([canny_image, canny_image, canny_image], axis=2)
+    canny_image = Image.fromarray(canny_image)
+    canny_image.save(os.path.join(CACHE_DIR,"canny_image.png"))
+    return canny_image
+
 def main_fastcomposer_controlnet():
     args = parse_args()
-    CACHE_DIR = "controlnet_fastcomposer_cache"
+    CACHE_DIR = args.output_images_dir
     os.makedirs(CACHE_DIR, exist_ok=True)
     image = Image.open(args.control_image_path)
     image.save(os.path.join(CACHE_DIR,"control_image_original.png"))
     image = np.array(image)
 
-    low_threshold = 100
-    high_threshold = 200
-
-    canny_image = cv2.Canny(image, low_threshold, high_threshold)
-    canny_image = canny_image[:, :, None]
-    canny_image = np.concatenate([canny_image, canny_image, canny_image], axis=2)
-    canny_image = Image.fromarray(canny_image)
-
-    canny_image.save(os.path.join(CACHE_DIR,"canny_image.png"))
+    condition_image = generate_poses_image(image, CACHE_DIR) if args.use_poses else generate_canny_image(image, CACHE_DIR)
 
     """
     controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-canny", torch_dtype=torch.float16)
@@ -126,7 +132,7 @@ def main_fastcomposer_controlnet():
 
     output = pipe(
         prompt,
-        canny_image,
+        condition_image,
         negative_prompt=["monochrome, lowres, bad anatomy, worst quality, low quality"] * len(prompt),
         generator=generator,
         num_inference_steps=50,
@@ -145,6 +151,7 @@ def main_fastcomposer_controlnet():
 
 
 def main_sd_controlnet():
+    args = parse_args()
     CACHE_DIR = "controlnet_cache"
     image = load_image(
         "https://hf.co/datasets/huggingface/documentation-images/resolve/main/diffusers/input_image_vermeer.png"
@@ -152,15 +159,7 @@ def main_sd_controlnet():
     image.save(os.path.join(CACHE_DIR,"original_image.png"))
     image = np.array(image)
 
-    low_threshold = 100
-    high_threshold = 200
-
-    canny_image = cv2.Canny(image, low_threshold, high_threshold)
-    canny_image = canny_image[:, :, None]
-    canny_image = np.concatenate([canny_image, canny_image, canny_image], axis=2)
-    canny_image = Image.fromarray(canny_image)
-
-    canny_image.save(os.path.join(CACHE_DIR,"canny_image.png"))
+    condition_image = generate_poses_image(image, CACHE_DIR) if args.use_poses else generate_canny_image()
 
     controlnet = ControlNetModel.from_pretrained("lllyasviel/sd-controlnet-canny", torch_dtype=torch.float16)
     pipe = StableDiffusionControlNetPipeline.from_pretrained(
@@ -175,7 +174,7 @@ def main_sd_controlnet():
 
     output = pipe(
         prompt,
-        canny_image,
+        condition_image,
         negative_prompt=["monochrome, lowres, bad anatomy, worst quality, low quality"] * len(prompt),
         generator=generator,
         num_inference_steps=50,

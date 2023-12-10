@@ -313,7 +313,7 @@ def parse_args(default=False):
     parser.add_argument("--guidance_scale", type=int, default=5)
     parser.add_argument("--num_images_per_prompt", type=int, default=1)
     parser.add_argument("--evaluation_batch_size", type=int, default=4)
-    parser.add_argument("--finetuned_model_path", type=str, default="fastcomposer/model/fastcomposer/pytorch_model.bin")
+    parser.add_argument("--finetuned_model_path", type=str, default="model/fastcomposer/pytorch_model.bin")
     parser.add_argument("--start_idx", type=int, default=0)
     parser.add_argument("--end_idx", type=int, default=50)
     parser.add_argument(
@@ -528,6 +528,7 @@ def parse_args(default=False):
     parser.add_argument("--object_localization_loss", type=str, default="balanced_l1")
     parser.add_argument("--object_localization_threshold", type=float, default=1.0)
     parser.add_argument("--object_localization_normalize", action="store_true")
+    parser.add_argument("--use_poses", action="store_true", help="If not included, uses canny images")
     parser.add_argument("--unet_lr_scale", type=float, default=1.0)
 
     parser.add_argument(
@@ -678,6 +679,12 @@ def parse_args(default=False):
         "--control-image-path",
         type=str,
         default="./data/control/dancing1.jpg",
+    )
+
+    parser.add_argument(
+        "--output-images-dir",
+        type=str,
+        default="controlnet_fastcomposer_cache",
     )
 
     parser.add_argument("--freeze_postfuse_module", action="store_true")
