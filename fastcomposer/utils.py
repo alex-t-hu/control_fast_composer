@@ -689,7 +689,7 @@ def parse_args(default=False):
 
     parser.add_argument("--freeze_postfuse_module", action="store_true")
     parser.add_argument("--alpha", type=float, default=0.0, help="default as no conditioning, pure text to image")
-    parser.add_argument("--controlnet_name", type=str, default="lllyasviel/sd-controlnet-canny")
+    # parser.add_argument("--controlnet_name", type=str, default="lllyasviel/sd-controlnet-canny")
 
     if default:
         return parser.parse_args([])

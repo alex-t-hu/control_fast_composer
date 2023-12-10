@@ -44,7 +44,8 @@ def load_pipeline(args, device):
     tokenizer.add_tokens(["img"], special_tokens=True)
     image_token_id = tokenizer.convert_tokens_to_ids("img")
 
-    controlnet = ControlNetModel.from_pretrained(args.controlnet_name, torch_dtype=torch.float16)
+    controlnet_name = 'lllyasviel/sd-controlnet-openpose' if args.use_poses else 'lllyasviel/sd-controlnet-canny'
+    controlnet = ControlNetModel.from_pretrained(controlnet_name, torch_dtype=torch.float16)
 
     pipe = FastComposerControlNetPipeline.from_pretrained(
         args.pretrained_model_name_or_path, controlnet=controlnet, torch_dtype=weight_dtype
