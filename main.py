@@ -107,6 +107,7 @@ def generate_canny_image(image, CACHE_DIR, low_threshold=100, high_threshold=200
 
 def main_fastcomposer_controlnet():
     args = parse_args()
+    print(args.alpha)
     CACHE_DIR = args.output_images_dir
     os.makedirs(CACHE_DIR, exist_ok=True)
     image = Image.open(args.control_image_path)

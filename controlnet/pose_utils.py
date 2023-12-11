@@ -83,7 +83,7 @@ class Body(object):
         self.model = bodypose_model()
         if torch.cuda.is_available():
             self.model = self.model.cuda()
-            print('cuda')
+            # print('cuda')
         model_dict = transfer(self.model, torch.load(model_path))
         self.model.load_state_dict(model_dict)
         self.model.eval()
@@ -280,7 +280,7 @@ class Hand(object):
         self.model = handpose_model()
         if torch.cuda.is_available():
             self.model = self.model.cuda()
-            print('cuda')
+            # print('cuda')
         model_dict = transfer(self.model, torch.load(model_path))
         self.model.load_state_dict(model_dict)
         self.model.eval()

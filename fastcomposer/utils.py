@@ -85,7 +85,7 @@ def parse_args(default=False):
         help="The directory where the downloaded models and datasets will be stored.",
     )
     parser.add_argument(
-        "--seed", type=int, default=None, help="A seed for reproducible training."
+        "--seed", type=int, default=42, help="A seed for reproducible training."
     )
 
     parser.add_argument(
@@ -310,7 +310,7 @@ def parse_args(default=False):
 
     # inference specific arguments
     parser.add_argument("--inference_steps", type=int, default=50)
-    parser.add_argument("--guidance_scale", type=int, default=5)
+    parser.add_argument("--guidance_scale", type=int, default=9)
     parser.add_argument("--num_images_per_prompt", type=int, default=1)
     parser.add_argument("--evaluation_batch_size", type=int, default=4)
     parser.add_argument("--finetuned_model_path", type=str, default="model/fastcomposer/pytorch_model.bin")
@@ -327,7 +327,7 @@ def parse_args(default=False):
     parser.add_argument(
         "--start_merge_step",
         type=int,
-        default=0,
+        default=10,
         help="when to start merging noise prediction from multiple conditioning source",
     )
 
@@ -353,7 +353,7 @@ def parse_args(default=False):
     parser.add_argument(
         "--max_num_objects",
         type=int,
-        default=4,
+        default=2,
     )
 
     parser.add_argument(
@@ -365,7 +365,7 @@ def parse_args(default=False):
     parser.add_argument(
         "--object_resolution",
         type=int,
-        default=256,
+        default=224,
     )
 
     parser.add_argument(
@@ -671,7 +671,7 @@ def parse_args(default=False):
     parser.add_argument(
         "--reference-image-path",
         type=str,
-        default="./data/reference/barbara/barbara.jpg",
+        default="./data/reference/einstein/einstein.jpeg",
     )
 
 
