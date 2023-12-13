@@ -4,10 +4,14 @@ from fastcomposer.utils import parse_args
 from diffusers.utils import load_image
 import torch 
 from controlnet.pose_utils import OpenposeDetector
+from similarity_score import similarity_score
+import scipy
 
 import cv2
 from PIL import Image
+from mtcnn import MTCNN
 import numpy as np
+from keras_facenet import FaceNet
 import os 
 import pdb
 def image_grid(imgs, rows, cols):
@@ -187,5 +191,77 @@ def main_sd_controlnet():
     grid_image.save(os.path.join(CACHE_DIR,"output_image.png"))
 
 
+def eval_in_bulk():
+    args = parse_args()
+    ref_images_dir = './celebA/ref'
+    ref_images = []
+    for _, _, files in os.walk(ref_images_dir):
+        ref_images.extend(files)
+    
+    CACHE_DIR = f'./celebA/{args.output_images_dir}'
+    os.makedirs(CACHE_DIR, exist_ok=True)
+    image = Image.open(args.control_image_path)
+    image.save(os.path.join(CACHE_DIR,"control_image_original.png"))
+    image = np.array(image)
+
+    condition_image = generate_poses_image(image, CACHE_DIR) if args.use_poses else generate_canny_image(image, CACHE_DIR)
+
+    prompt = ["a man dancing"]
+    pipe = load_pipeline(args, "cuda")
+    generator = [torch.Generator(device="cpu").manual_seed(i) for i in range(len(prompt)*args.num_images_per_prompt)]
+    # run on all of celeb-A
+    for img in ref_images:
+        reference_subject_images = [Image.open(f'./celebA/ref/{img}')]
+        output = pipe(
+            prompt,
+            condition_image,
+            negative_prompt=["monochrome, lowres, bad anatomy, worst quality, low quality"] * len(prompt),
+            generator=generator,
+            num_inference_steps=50,
+            height=512,
+            width=512,
+            guidance_scale=args.guidance_scale,
+            num_images_per_prompt=args.num_images_per_prompt,
+            alpha_=args.alpha,
+            reference_subject_images=reference_subject_images,
+        )
+
+        grid_image = image_grid(output.images, 1, 1)
+        grid_image.save(os.path.join(CACHE_DIR,f"{img}.png"))
+
+def compute_eval_score(ref_images_dir, out_images_dir, ):
+    ref_images = []
+    for _, _, files in os.walk(ref_images_dir):
+        ref_images.extend(files)
+    evals = []
+
+    detector = MTCNN() # create the detector, using default weights
+    model = FaceNet()
+    for image in ref_images:
+        output = os.path.join(out_images_dir, f'{image}.png')
+        ref = os.path.join(ref_images_dir, image)
+        sim = similarity_score(detector, model, output, ref)
+        evals.append(sim)
+    
+    return np.array(evals)
+
 if __name__ == "__main__":
-    main_fastcomposer_controlnet()
+    # main_fastcomposer_controlnet()
+    # eval_in_bulk()
+    to_print = []
+    
+    to_print.append('cosine')
+    # for i in ['0.0', '0.1', '0.2', 
+    #           '0.3', '0.4', '0.5', 
+    #           '0.6', '0.7', '0.8', 
+    #           '0.9', '1.0']:
+    for i in ['0.5']:
+        to_print.append('alpha')
+        to_print.append(i)
+        evals = compute_eval_score('./celebA/ref', f'./celebA/poses_alpha{i}')
+        to_print.append('average')
+        to_print.append(str(np.mean(evals)))
+        to_print.append('standard error of mean')
+        to_print.append(str(scipy.stats.sem(evals)))
+    
+    print('\n'.join(to_print))
