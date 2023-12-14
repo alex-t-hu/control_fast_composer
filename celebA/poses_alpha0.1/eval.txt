@@ -1,0 +1,7 @@
+cosine
+alpha
+0.1
+average
+0.4079870129347546
+standard error of mean
+0.01977209233270635

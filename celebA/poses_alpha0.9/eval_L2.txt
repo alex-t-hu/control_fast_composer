@@ -1,0 +1,61 @@
+L2
+alpha
+0.0
+average
+0.8411380648612976
+standard error of mean
+0.0950321603258583
+alpha
+0.1
+average
+0.8411380648612976
+standard error of mean
+0.0950321603258583
+alpha
+0.2
+average
+0.8411380648612976
+standard error of mean
+0.0950321603258583
+alpha
+0.3
+average
+0.8411380648612976
+standard error of mean
+0.0950321603258583
+alpha
+0.4
+average
+0.8411380648612976
+standard error of mean
+0.0950321603258583
+alpha
+0.5
+average
+0.8411380648612976
+standard error of mean
+0.0950321603258583
+alpha
+0.6
+average
+0.8411380648612976
+standard error of mean
+0.0950321603258583
+alpha
+0.7
+average
+0.8411380648612976
+standard error of mean
+0.0950321603258583
+alpha
+0.8
+average
+0.8411380648612976
+standard error of mean
+0.0950321603258583
+alpha
+0.9
+average
+0.8411380648612976
+standard error of mean
+0.0950321603258583
