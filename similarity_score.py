@@ -39,38 +39,41 @@ def get_embedding(model, face_pixels):
     yhat = model.embeddings(samples)
     return yhat[0]
 
-def similarity_score(detector, model, image_path_1, image_path_2, eval_mode = 'single', score_mode='cosine'):
+def similarity_score(detector, model, image_path_1, image_path_2, score_mode='l2'):
     faces1 = extract_faces(detector, image_path_1)
     faces2 = extract_faces(detector, image_path_2)
     if len(faces1) == 0 or len(faces2) == 0:
         return 0
     # assert len(faces1) == len(faces2), f'Number of faces in both images should be same but faces1 has {len(faces1)} and faces2 has {len(faces2)}. image paths {image_path_1}, {image_path_2}'
-    if eval_mode == 'single':
-        faces1 = faces1[0]
-        faces2 = faces2[0]
+    faces1 = faces1[0]
+    faces2 = faces2[0]
+
+    embedding1 = get_embedding(model, faces1)
+    embedding2 = get_embedding(model, faces2)
+    score = similarity(embedding1, embedding2, score_mode)
+    return score
+
+def similarity_score_double(detector, model, image_path_1, ref_path_1, ref_path_2, score_mode='l2'):
+    faces1 = extract_faces(detector, image_path_1)
+    ref1 = extract_faces(detector, ref_path_1)
+    ref2 = extract_faces(detector, ref_path_2)
+    if len(faces1) < 2 or len(ref1) == 0 or len(ref2) == 0:
+        return 0
+    # assert len(faces1) == len(faces2), f'Number of faces in both images should be same but faces1 has {len(faces1)} and faces2 has {len(faces2)}. image paths {image_path_1}, {image_path_2}'
+    faces1 = faces1[:2]
+    faces2 = [ref1[0], ref2[0]]
+
+
+    embeddings1 = [get_embedding(model, faces1[0]), get_embedding(model, faces1[1])]
+    embeddings2 = [get_embedding(model, faces2[0]), get_embedding(model, faces2[1])]
+
+    score1 = similarity(embeddings1[0], embeddings2[0], score_mode) + similarity(embeddings1[1], embeddings2[1], score_mode)
+    score2 = similarity(embeddings1[0], embeddings2[1], score_mode) + similarity(embeddings1[1], embeddings2[0], score_mode)
+
+    if score_mode == 'cosine':
+        return max(score1, score2) / 2
     else:
-        assert eval_mode == 'double'
-        faces1 = faces1[:2]
-        faces2 = faces2[:2]
-
-    if eval_mode == 'single':
-        embedding1 = get_embedding(model, faces1)
-        embedding2 = get_embedding(model, faces2)
-        score = similarity(embedding1, embedding2, score_mode)
-        return score
-    else:
-        assert len(faces1) == 2
-
-        embeddings1 = [get_embedding(model, faces1[0]), get_embedding(model, faces1[1])]
-        embeddings2 = [get_embedding(model, faces2[0]), get_embedding(model, faces2[1])]
-
-        score1 = similarity(embeddings1[0], embeddings2[0], score_mode) + similarity(embeddings1[1], embeddings2[1], score_mode)
-        score2 = similarity(embeddings1[0], embeddings2[1], score_mode) + similarity(embeddings1[1], embeddings2[0], score_mode)
-
-        if score1 > score2:
-            return score1 / 2
-        else:
-            return score2 / 2
+        return min(score1, score2) / 2
 
 if __name__ == "__main__":
     detector = MTCNN() # create the detector, using default weights

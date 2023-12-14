@@ -674,11 +674,10 @@ def parse_args(default=False):
         default="./data/reference/einstein/einstein.jpeg",
     )
 
-
     parser.add_argument(
         "--control-image-path",
         type=str,
-        default="./data/control/dancing1.jpg",
+        default="./data/control/gregilya.jpg",
     )
 
     parser.add_argument(
