@@ -2,6 +2,8 @@ from PIL import Image
 from mtcnn import MTCNN
 import numpy as np
 from keras_facenet import FaceNet
+import clip
+import torch
 
 # extract a single face from a given photograph
 def extract_faces(detector, filename, required_size=(160, 160)):
@@ -43,7 +45,7 @@ def similarity_score(detector, model, image_path_1, image_path_2, score_mode='l2
     faces1 = extract_faces(detector, image_path_1)
     faces2 = extract_faces(detector, image_path_2)
     if len(faces1) == 0 or len(faces2) == 0:
-        return 0
+        return 1
     # assert len(faces1) == len(faces2), f'Number of faces in both images should be same but faces1 has {len(faces1)} and faces2 has {len(faces2)}. image paths {image_path_1}, {image_path_2}'
     faces1 = faces1[0]
     faces2 = faces2[0]
@@ -58,7 +60,7 @@ def similarity_score_double(detector, model, image_path_1, ref_path_1, ref_path_
     ref1 = extract_faces(detector, ref_path_1)
     ref2 = extract_faces(detector, ref_path_2)
     if len(faces1) < 2 or len(ref1) == 0 or len(ref2) == 0:
-        return 0
+        return 1
     # assert len(faces1) == len(faces2), f'Number of faces in both images should be same but faces1 has {len(faces1)} and faces2 has {len(faces2)}. image paths {image_path_1}, {image_path_2}'
     faces1 = faces1[:2]
     faces2 = [ref1[0], ref2[0]]
@@ -74,6 +76,36 @@ def similarity_score_double(detector, model, image_path_1, ref_path_1, ref_path_
         return max(score1, score2) / 2
     else:
         return min(score1, score2) / 2
+
+
+def get_clip_score(image_path, text):
+    # Load the pre-trained CLIP model and the image
+    model, preprocess = clip.load('ViT-B/32')
+    image = Image.open(image_path)
+
+    # Preprocess the image and tokenize the text
+    image_input = preprocess(image).unsqueeze(0)
+    text_input = clip.tokenize([text])
+    
+    # Move the inputs to GPU if available
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    image_input = image_input.to(device)
+    text_input = text_input.to(device)
+    model = model.to(device)
+    
+    # Generate embeddings for the image and text
+    with torch.no_grad():
+        image_features = model.encode_image(image_input)
+        text_features = model.encode_text(text_input)
+    
+    # Normalize the features
+    image_features = image_features / image_features.norm(dim=-1, keepdim=True)
+    text_features = text_features / text_features.norm(dim=-1, keepdim=True)
+    
+    # Calculate the cosine similarity to get the CLIP score
+    clip_score = torch.matmul(image_features, text_features.T).item()
+    
+    return clip_score
 
 if __name__ == "__main__":
     detector = MTCNN() # create the detector, using default weights
